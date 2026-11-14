@@ -2,165 +2,133 @@ package Controller;
 
 import Model.Pelanggan;
 import Utility.Koneksi;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.Statement;
+import java.sql.ResultSet;
 import javax.swing.table.DefaultTableModel;
 
 public class PelangganController {
 
-    public Connection cn;
     public Statement stm;
     public ResultSet res;
     public String sql;
-    public String pesan = "";
 
+    // model tabel / tabel virtual
     DefaultTableModel dtm = new DefaultTableModel();
 
+    // konstruktor
     public PelangganController() {
+        // objek koneksi
         Koneksi db = new Koneksi();
         db.config();
-        this.cn = db.cn;
         this.stm = db.stm;
     }
 
+    // Method 1: Buat model/desain tabel
     public DefaultTableModel createTable() {
-        if (this.dtm.getColumnCount() == 0) {
-            this.dtm.addColumn("ID Pelanggan");
-            this.dtm.addColumn("Nama Pelanggan");
-            this.dtm.addColumn("No HP");
-        }
+        this.dtm = new DefaultTableModel();
+        this.dtm.addColumn("ID Pelanggan");
+        this.dtm.addColumn("Nama Pelanggan");
+        this.dtm.addColumn("No. HP");
         return this.dtm;
     }
 
+    // Method 2: SELECT semua pelanggan (isi JTable)
     public void tampilkanPelanggan() {
         try {
-            this.dtm.setRowCount(0);
+            // bersihkan isi tabel virtual
+            this.dtm.getDataVector().removeAllElements();
+            this.dtm.fireTableDataChanged();
+
+            // ambil semua data pelanggan
             this.sql = "SELECT * FROM pelanggan ORDER BY nama";
-            this.res = this.stm.executeQuery(this.sql);
+            this.res = this.stm.executeQuery(sql);
+
+            // masukkan hasil query ke tabel virtual
             while (res.next()) {
-                this.dtm.addRow(new Object[]{
-                    res.getString("id"), res.getString("nama"), res.getString("no_hp")
-                });
+                Object[] obj = new Object[3];
+                obj[0] = res.getInt("id");
+                obj[1] = res.getString("nama");
+                obj[2] = res.getString("no_hp");
+                this.dtm.addRow(obj);
             }
         } catch (Exception e) {
-            System.out.println("Gagal Query Pelanggan..");
-            System.out.println(e.getMessage());
+            System.out.println("Query tampil pelanggan gagal : " + e.getMessage());
         }
     }
 
+    // Method 3: INSERT pelanggan
+    public boolean tambahPelanggan(String nama, String noHp) {
+        // Hubungkan dengan model Pelanggan
+        Pelanggan pl = new Pelanggan();
+        pl.setNama_pelanggan(nama);
+        pl.setNo_hp(noHp);
+
+        try {
+            this.sql = "INSERT INTO pelanggan (nama, no_hp) VALUES ('"
+                    + esc(pl.getNama_pelanggan()) + "', '"
+                    + esc(pl.getNo_hp()) + "')";
+            this.stm.executeUpdate(sql);
+            return true;
+        } catch (Exception e) {
+            System.out.println("Query tambah pelanggan gagal : " + e.getMessage());
+            return false;
+        }
+    }
+
+    //  Method 4: UPDATE pelanggan
+    public boolean ubahPelanggan(int id, String nama, String noHp) {
+        Pelanggan pl = new Pelanggan();
+        pl.setId_pelanggan(id);
+        pl.setNama_pelanggan(nama);
+        pl.setNo_hp(noHp);
+
+        try {
+            this.sql = "UPDATE pelanggan SET nama = '" + esc(pl.getNama_pelanggan())
+                    + "', no_hp = '" + esc(pl.getNo_hp())
+                    + "' WHERE id = " + pl.getId_pelanggan();
+            this.stm.executeUpdate(sql);
+            return true;
+        } catch (Exception e) {
+            System.out.println("Query ubah pelanggan gagal : " + e.getMessage());
+        }
+        return false;
+    }
+
+    //  Method 5: DELETE pelanggan
+    public boolean hapusPelanggan(int id) {
+        Pelanggan pl = new Pelanggan();
+        pl.setId_pelanggan(id);
+
+        try {
+            this.sql = "DELETE FROM pelanggan WHERE id = " + pl.getId_pelanggan();
+            this.stm.executeUpdate(sql);
+            return true;
+        } catch (Exception e) {
+            System.out.println("Query hapus pelanggan gagal : " + e.getMessage());
+        }
+        return false;
+    }
+
+    // Method 6: SELECT satu pelanggan (null jika tidak ada)
     public Pelanggan cariPelanggan(int id) {
         try {
-            this.sql = "SELECT * FROM pelanggan WHERE id = ?";
-            try (PreparedStatement ps = this.cn.prepareStatement(this.sql)) {
-                ps.setInt(1, id);
-                try (ResultSet rs = ps.executeQuery()) {
-                    if (rs.next()) {
-                        return new Pelanggan(rs.getInt("id"), rs.getString("nama"), rs.getString("no_hp"));
-                    }
-                }
+            this.sql = "SELECT * FROM pelanggan WHERE id = " + id;
+            this.res = this.stm.executeQuery(sql);
+            if (res.next()) {
+                Pelanggan pl = new Pelanggan();
+                pl.setId_pelanggan(res.getInt("id"));
+                pl.setNama_pelanggan(res.getString("nama"));
+                pl.setNo_hp(res.getString("no_hp"));
+                return pl;
             }
         } catch (Exception e) {
-            System.out.println("Gagal cari Pelanggan..");
-            System.out.println(e.getMessage());
+            System.out.println("Query cari pelanggan gagal : " + e.getMessage());
         }
         return null;
     }
 
-    public boolean tambahPelanggan(String nama, String noHp) {
-        Pelanggan p = new Pelanggan(rapikan(nama), rapikan(noHp));
-        if (!valid(p)) {
-            return false;
-        }
-        try {
-            this.sql = "INSERT INTO pelanggan (nama, no_hp) VALUES (?, ?)";
-            try (PreparedStatement ps = this.cn.prepareStatement(this.sql)) {
-                ps.setString(1, p.getNama());
-                ps.setString(2, p.getNoHp().isEmpty() ? null : p.getNoHp());
-                ps.executeUpdate();
-            }
-            return true;
-        } catch (Exception e) {
-            this.pesan = "Gagal menyimpan data pelanggan.";
-            System.out.println("tambahPelanggan failed: " + e.getMessage());
-            return false;
-        }
-    }
-
-    public boolean ubahPelanggan(int id, String nama, String noHp) {
-        Pelanggan p = new Pelanggan(id, rapikan(nama), rapikan(noHp));
-        if (!valid(p)) {
-            return false;
-        }
-        try {
-            this.sql = "UPDATE pelanggan SET nama = ?, no_hp = ? WHERE id = ?";
-            try (PreparedStatement ps = this.cn.prepareStatement(this.sql)) {
-                ps.setString(1, p.getNama());
-                ps.setString(2, p.getNoHp().isEmpty() ? null : p.getNoHp());
-                ps.setInt(3, p.getId());
-                if (ps.executeUpdate() == 0) {
-                    this.pesan = "Pelanggan tidak ditemukan.";
-                    return false;
-                }
-            }
-            return true;
-        } catch (Exception e) {
-            this.pesan = "Gagal mengubah data pelanggan.";
-            System.out.println("ubahPelanggan failed: " + e.getMessage());
-            return false;
-        }
-    }
-
-    public boolean hapusPelanggan(int id) {
-        try {
-            this.sql = "SELECT COUNT(*) FROM booking WHERE id_pelanggan = ?";
-            try (PreparedStatement ps = this.cn.prepareStatement(this.sql)) {
-                ps.setInt(1, id);
-                try (ResultSet rs = ps.executeQuery()) {
-                    if (rs.next() && rs.getInt(1) > 0) {
-                        this.pesan = "Pelanggan tidak bisa dihapus karena masih memiliki data booking.";
-                        return false;
-                    }
-                }
-            }
-            this.sql = "DELETE FROM pelanggan WHERE id = ?";
-            try (PreparedStatement ps = this.cn.prepareStatement(this.sql)) {
-                ps.setInt(1, id);
-                if (ps.executeUpdate() == 0) {
-                    this.pesan = "Pelanggan tidak ditemukan.";
-                    return false;
-                }
-            }
-            return true;
-        } catch (Exception e) {
-            this.pesan = "Gagal menghapus data pelanggan.";
-            System.out.println("hapusPelanggan failed: " + e.getMessage());
-            return false;
-        }
-    }
-
-    private String rapikan(String teks) {
-        return teks == null ? "" : teks.trim();
-    }
-
-    private boolean valid(Pelanggan p) {
-        if (p.getNama().isEmpty()) {
-            this.pesan = "Nama pelanggan tidak boleh kosong.";
-            return false;
-        }
-        if (p.getNama().length() > 100) {
-            this.pesan = "Nama pelanggan maksimal 100 karakter.";
-            return false;
-        }
-        if (p.getNoHp().length() > 20) {
-            this.pesan = "No HP maksimal 20 karakter.";
-            return false;
-        }
-        if (!p.getNoHp().isEmpty() && !p.getNoHp().matches("[0-9+]+")) {
-            this.pesan = "No HP hanya boleh berisi angka.";
-            return false;
-        }
-        return true;
+    // ' menjadi '' dan \ menjadi \\ supaya nama seperti D'Angelo tidak merusak query
+    private String esc(String teks) {
+        return teks == null ? "" : teks.replace("\\", "\\\\").replace("'", "''");
     }
 }

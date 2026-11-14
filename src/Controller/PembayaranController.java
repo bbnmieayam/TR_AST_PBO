@@ -4,178 +4,141 @@ import Model.Pembayaran;
 import Model.PembayaranCash;
 import Model.PembayaranQris;
 import Utility.Koneksi;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.Statement;
+import java.sql.ResultSet;
 import javax.swing.table.DefaultTableModel;
 
 public class PembayaranController {
 
-    public Connection cn;
     public Statement stm;
     public ResultSet res;
     public String sql;
 
-    // Alasan gagal, untuk ditampilkan oleh view (misalnya lewat JOptionPane)
+    // alasan gagal (untuk JOptionPane) dan kembalian pembayaran terakhir (0 untuk QRIS)
     public String pesan = "";
-
-    // Kembalian dari pembayaran terakhir yang berhasil (0 untuk QRIS), untuk ditampilkan view
     public double kembalianTerakhir = 0;
 
-    // true  = booking hanya boleh dibayar setelah statusnya SELESAI
-    // false = boleh dibayar kapan saja (ubah ke false jika soal tidak mensyaratkan)
-    public boolean wajibSelesai = true;
-
-    // Model tabel virtual
+    // model tabel / tabel virtual
     DefaultTableModel dtm = new DefaultTableModel();
 
-    // Konstruktor
+    // konstruktor
     public PembayaranController() {
+        // objek koneksi
         Koneksi db = new Koneksi();
         db.config();
-        this.cn = db.cn;
         this.stm = db.stm;
     }
 
-    // Method 1: Membuat desain tabel virtual
+    //  Method 1: Buat model/desain tabel 
     public DefaultTableModel createTable() {
-        if (this.dtm.getColumnCount() == 0) {
-            this.dtm.addColumn("ID Pembayaran");
-            this.dtm.addColumn("ID Booking");
-            this.dtm.addColumn("Metode");
-            this.dtm.addColumn("Total Biaya");
-            this.dtm.addColumn("Dibayar");
-            this.dtm.addColumn("Kembalian");
-            this.dtm.addColumn("Waktu Bayar");
-        }
+        this.dtm = new DefaultTableModel();
+        this.dtm.addColumn("ID Pembayaran");
+        this.dtm.addColumn("ID Booking");
+        this.dtm.addColumn("Metode");
+        this.dtm.addColumn("Total Biaya");
+        this.dtm.addColumn("Dibayar");
+        this.dtm.addColumn("Kembalian");
+        this.dtm.addColumn("Waktu Bayar");
         return this.dtm;
     }
 
-    // Method 2: SELECT semua pembayaran
+    // Method 2: SELECT semua pembayaran (isi JTable)
     public void tampilkanPembayaran() {
         try {
-            // Bersihkan tabel virtual
-            this.dtm.setRowCount(0);
+            // bersihkan isi tabel virtual
+            this.dtm.getDataVector().removeAllElements();
+            this.dtm.fireTableDataChanged();
 
-            // Query
+            // ambil semua data pembayaran beserta total biaya booking
             this.sql = "SELECT p.id, p.id_booking, p.metode, b.total_biaya, "
                     + "p.jumlah_bayar, p.kembalian, p.waktu_bayar "
                     + "FROM pembayaran p JOIN booking b ON b.id = p.id_booking "
                     + "ORDER BY p.waktu_bayar DESC";
+            this.res = this.stm.executeQuery(sql);
 
-            // Jalankan query
-            this.res = this.stm.executeQuery(this.sql);
-
-            // Masukkan hasil query ke tabel virtual
+            // masukkan hasil query ke tabel virtual
             while (res.next()) {
                 Object[] obj = new Object[7];
-
-                obj[0] = res.getString("id");
-                obj[1] = res.getString("id_booking");
+                obj[0] = res.getInt("id");
+                obj[1] = res.getInt("id_booking");
                 obj[2] = res.getString("metode");
-                obj[3] = res.getString("total_biaya");
-                obj[4] = res.getString("jumlah_bayar");
-                obj[5] = res.getString("kembalian");
-                obj[6] = res.getString("waktu_bayar");
-
+                obj[3] = res.getDouble("total_biaya");
+                obj[4] = res.getDouble("jumlah_bayar");
+                obj[5] = res.getDouble("kembalian");
+                obj[6] = res.getTimestamp("waktu_bayar");
                 this.dtm.addRow(obj);
             }
-
         } catch (Exception e) {
-            System.out.println("Gagal Query Pembayaran..");
-            System.out.println(e.getMessage());
+            System.out.println("Query tampil pembayaran gagal : " + e.getMessage());
         }
     }
 
     // Method 3: Bayar CASH (menghitung kembalian)
     public boolean bayarCash(int idBooking, double uangDiterima) {
-        double total = ambilTotalSiapBayar(idBooking);
+        double total = ambilTotal(idBooking);
         if (total < 0) {
-            return false; // alasan sudah diisi di this.pesan
-        }
-
-        if (uangDiterima < total) {
-            this.pesan = String.format("Uang yang diterima kurang. Total biaya: Rp %,.0f", total);
             return false;
         }
-
-        Pembayaran pb = new PembayaranCash(idBooking, total, uangDiterima);
-        return simpan(pb);
-    }
-
-    // Method 4: Bayar QRIS (tanpa kembalian)
-    public boolean bayarQris(int idBooking) {
-        double total = ambilTotalSiapBayar(idBooking);
-        if (total < 0) {
-            return false; 
+        if (uangDiterima < total) {
+            this.pesan = "Uang yang diterima kurang dari total biaya.";
+            return false;
         }
-
-        Pembayaran pb = new PembayaranQris(idBooking, total);
-        return simpan(pb);
+        return simpan(new PembayaranCash(idBooking, total, uangDiterima));
     }
 
-    // ---------- helper ----------
+    // Method 4: Bayar QRIS (tanpa kembalian) 
+    public boolean bayarQris(int idBooking) {
+        double total = ambilTotal(idBooking);
+        if (total < 0) {
+            return false;
+        }
+        return simpan(new PembayaranQris(idBooking, total));
+    }
 
-    // Pastikan booking ada, belum dibayar, dan (opsional) berstatus SELESAI.
-    // Return total biaya, atau -1 jika tidak boleh dibayar (alasannya di this.pesan).
-    private double ambilTotalSiapBayar(int idBooking) {
+    // Return total biaya, atau -1 jika booking tidak boleh dibayar (alasannya di this.pesan)
+    private double ambilTotal(int idBooking) {
         try {
-            this.sql = "SELECT total_biaya, status FROM booking WHERE id = ?";
-            double total;
-            try (PreparedStatement ps = this.cn.prepareStatement(this.sql)) {
-                ps.setInt(1, idBooking);
-                try (ResultSet rs = ps.executeQuery()) {
-                    if (!rs.next()) {
-                        this.pesan = "Booking tidak ditemukan.";
-                        return -1;
-                    }
-                    total = rs.getDouble("total_biaya");
-                    String status = rs.getString("status");
-
-                    if (this.wajibSelesai && !"SELESAI".equals(status)) {
-                        this.pesan = "Booking belum selesai dilayani, belum bisa dibayar.";
-                        return -1;
-                    }
-                }
+            this.sql = "SELECT total_biaya, status FROM booking WHERE id = " + idBooking;
+            this.res = this.stm.executeQuery(sql);
+            if (!res.next()) {
+                this.pesan = "Booking tidak ditemukan.";
+                return -1;
+            }
+            double total = res.getDouble("total_biaya");
+            if (!"SELESAI".equals(res.getString("status"))) { // hapus if ini jika boleh bayar sebelum selesai
+                this.pesan = "Booking belum selesai dilayani.";
+                return -1;
             }
 
-            this.sql = "SELECT COUNT(*) FROM pembayaran WHERE id_booking = ?";
-            try (PreparedStatement ps = this.cn.prepareStatement(this.sql)) {
-                ps.setInt(1, idBooking);
-                try (ResultSet rs = ps.executeQuery()) {
-                    if (rs.next() && rs.getInt(1) > 0) {
-                        this.pesan = "Booking ini sudah dibayar.";
-                        return -1;
-                    }
-                }
+            this.sql = "SELECT COUNT(*) FROM pembayaran WHERE id_booking = " + idBooking;
+            this.res = this.stm.executeQuery(sql);
+            if (res.next() && res.getInt(1) > 0) {
+                this.pesan = "Booking ini sudah dibayar.";
+                return -1;
             }
             return total;
-
         } catch (Exception e) {
+            System.out.println("Query cek booking gagal : " + e.getMessage());
             this.pesan = "Gagal memeriksa data booking.";
-            System.out.println("ambilTotalSiapBayar failed: " + e.getMessage());
             return -1;
         }
     }
 
-    // Simpan pembayaran apa pun jenisnya (CASH atau QRIS) lewat satu method
+    // Simpan pembayaran CASH maupun QRIS lewat satu method
     private boolean simpan(Pembayaran pb) {
         try {
-            this.sql = "INSERT INTO pembayaran (id_booking, metode, jumlah_bayar, kembalian) "
-                    + "VALUES (?, ?, ?, ?)";
-            try (PreparedStatement ps = this.cn.prepareStatement(this.sql)) {
-                ps.setInt(1, pb.getId_booking());
-                ps.setString(2, pb.getMetode());
-                ps.setDouble(3, pb.getJumlah_bayar());
-                ps.setDouble(4, pb.hitungKembalian());
-                ps.executeUpdate();
-            }
-            this.kembalianTerakhir = pb.hitungKembalian();
+            double kembalian = pb.hitungKembalian();
+            this.sql = "INSERT INTO pembayaran (id_booking, metode, jumlah_bayar, kembalian) VALUES ("
+                    + pb.getId_booking() + ", '"
+                    + pb.getMetode() + "', "
+                    + pb.getJumlah_bayar() + ", "
+                    + kembalian + ")";
+            this.stm.executeUpdate(sql);
+            this.kembalianTerakhir = kembalian;
             return true;
         } catch (Exception e) {
+            System.out.println("Query simpan pembayaran gagal : " + e.getMessage());
             this.pesan = "Gagal menyimpan pembayaran.";
-            System.out.println("simpan pembayaran failed: " + e.getMessage());
             return false;
         }
     }

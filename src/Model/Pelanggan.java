@@ -1,34 +1,32 @@
 package Model;
 
 public class Pelanggan {
-    private int id;
-    private String nama;
-    private String noHp;
 
-    public Pelanggan() {
+    private int id_pelanggan;
+    private String nama_pelanggan;
+    private String no_hp;
+
+    public int getId_pelanggan() {
+        return id_pelanggan;
     }
 
-    public Pelanggan(String nama, String noHp) {
-        this.nama = nama;
-        this.noHp = noHp;
+    public void setId_pelanggan(int id_pelanggan) {
+        this.id_pelanggan = id_pelanggan;
     }
 
-    public Pelanggan(int id, String nama, String noHp) {
-        this(nama, noHp);
-        this.id = id;
+    public String getNama_pelanggan() {
+        return nama_pelanggan;
     }
 
-    public int getId() { return id; }
-    public void setId(int id) { this.id = id; }
+    public void setNama_pelanggan(String nama_pelanggan) {
+        this.nama_pelanggan = nama_pelanggan;
+    }
 
-    public String getNama() { return nama; }
-    public void setNama(String nama) { this.nama = nama; }
+    public String getNo_hp() {
+        return no_hp;
+    }
 
-    public String getNoHp() { return noHp; }
-    public void setNoHp(String noHp) { this.noHp = noHp; }
-
-    @Override
-    public String toString() {
-        return nama;
+    public void setNo_hp(String no_hp) {
+        this.no_hp = no_hp;
     }
 }
