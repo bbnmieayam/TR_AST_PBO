@@ -34,7 +34,7 @@ public class PembayaranController {
     public PembayaranController() {
         Koneksi db = new Koneksi();
         db.config();
-        this.cn = db.con;
+        this.cn = db.cn;
         this.stm = db.stm;
     }
 
@@ -108,7 +108,7 @@ public class PembayaranController {
     public boolean bayarQris(int idBooking) {
         double total = ambilTotalSiapBayar(idBooking);
         if (total < 0) {
-            return false; // alasan sudah diisi di this.pesan
+            return false; 
         }
 
         Pembayaran pb = new PembayaranQris(idBooking, total);
