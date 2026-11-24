@@ -1,119 +1,70 @@
 package Model;
 
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
+import java.sql.Timestamp;
 
 public class Booking {
 
-    private int id;
-    private int idPelanggan;
-    private int idPegawai;
-    private LocalDateTime waktuMulai;
-    private LocalDateTime waktuSelesai;
-    private StatusLayanan status = StatusLayanan.MENUNGGU;
-    private double totalBiaya;
+    private int id_booking;
+    private int id_pelanggan;
+    private int id_pegawai;
+    private Timestamp waktu_mulai;
+    private Timestamp waktu_selesai;
+    private String status;
+    private double total_biaya;
 
-    private String namaPelanggan;
-    private String namaPegawai;
-    private String ringkasanLayanan;
-    private List<String> daftarLayanan = new ArrayList<>();
-
-    public Booking() {
+    public int getId_booking() {
+        return id_booking;
     }
 
-    public Booking(int idPelanggan, int idPegawai, LocalDateTime waktuMulai) {
-        this.idPelanggan = idPelanggan;
-        this.idPegawai = idPegawai;
-        this.waktuMulai = waktuMulai;
-        this.status = StatusLayanan.MENUNGGU;
+    public void setId_booking(int id_booking) {
+        this.id_booking = id_booking;
     }
 
-    public int getId() {
-        return id;
+    public int getId_pelanggan() {
+        return id_pelanggan;
     }
 
-    public void setId(int id) {
-        this.id = id;
+    public void setId_pelanggan(int id_pelanggan) {
+        this.id_pelanggan = id_pelanggan;
     }
 
-    public int getIdPelanggan() {
-        return idPelanggan;
+    public int getId_pegawai() {
+        return id_pegawai;
     }
 
-    public void setIdPelanggan(int idPelanggan) {
-        this.idPelanggan = idPelanggan;
+    public void setId_pegawai(int id_pegawai) {
+        this.id_pegawai = id_pegawai;
     }
 
-    public int getIdPegawai() {
-        return idPegawai;
+    public Timestamp getWaktu_mulai() {
+        return waktu_mulai;
     }
 
-    public void setIdPegawai(int idPegawai) {
-        this.idPegawai = idPegawai;
+    public void setWaktu_mulai(Timestamp waktu_mulai) {
+        this.waktu_mulai = waktu_mulai;
     }
 
-    public LocalDateTime getWaktuMulai() {
-        return waktuMulai;
+    public Timestamp getWaktu_selesai() {
+        return waktu_selesai;
     }
 
-    public void setWaktuMulai(LocalDateTime waktuMulai) {
-        this.waktuMulai = waktuMulai;
+    public void setWaktu_selesai(Timestamp waktu_selesai) {
+        this.waktu_selesai = waktu_selesai;
     }
 
-    public LocalDateTime getWaktuSelesai() {
-        return waktuSelesai;
-    }
-
-    public void setWaktuSelesai(LocalDateTime waktuSelesai) {
-        this.waktuSelesai = waktuSelesai;
-    }
-
-    public StatusLayanan getStatus() {
+    public String getStatus() {
         return status;
     }
 
-    public void setStatus(StatusLayanan status) {
+    public void setStatus(String status) {
         this.status = status;
     }
 
-    public double getTotalBiaya() {
-        return totalBiaya;
+    public double getTotal_biaya() {
+        return total_biaya;
     }
 
-    public void setTotalBiaya(double totalBiaya) {
-        this.totalBiaya = totalBiaya;
-    }
-
-    public String getNamaPelanggan() {
-        return namaPelanggan;
-    }
-
-    public void setNamaPelanggan(String namaPelanggan) {
-        this.namaPelanggan = namaPelanggan;
-    }
-
-    public String getNamaPegawai() {
-        return namaPegawai;
-    }
-
-    public void setNamaPegawai(String namaPegawai) {
-        this.namaPegawai = namaPegawai;
-    }
-
-    public String getRingkasanLayanan() {
-        return ringkasanLayanan;
-    }
-
-    public void setRingkasanLayanan(String ringkasanLayanan) {
-        this.ringkasanLayanan = ringkasanLayanan;
-    }
-
-    public List<String> getDaftarLayanan() {
-        return daftarLayanan;
-    }
-
-    public void setDaftarLayanan(List<String> daftarLayanan) {
-        this.daftarLayanan = daftarLayanan;
+    public void setTotal_biaya(double total_biaya) {
+        this.total_biaya = total_biaya;
     }
 }
